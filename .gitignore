@@ -3,3 +3,5 @@ node_modules/
 .dev.vars
 # Personal config with your school's ID. Copy wrangler.example.toml to create it.
 wrangler.toml
+wrangler.*.toml
+!wrangler.example.toml

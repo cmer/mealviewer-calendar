@@ -145,7 +145,7 @@ async function fetchMenu(config) {
         if (!group.includes(name)) group.push(name);
       }
     }
-    if (groups.ENTREES.length || groups.VEGETABLE.length) days.push({ date, theme, groups });
+    if (Object.values(groups).some((items) => items.length)) days.push({ date, theme, groups });
   }
   return days;
 }
@@ -168,7 +168,8 @@ function buildCalendar(days, { schoolId, timezone, calendarName, eventPrefix }) 
     const ymd = date.replace(/-/g, "");
     const next = addDays(date, 1).replace(/-/g, "");
     const mains = groups.ENTREES.filter((name) => !TITLE_SKIP.test(name));
-    const dishes = (mains.length ? mains : groups.ENTREES.length ? groups.ENTREES : groups.VEGETABLE).join(" / ");
+    // Fall back through the groups so a snack that's only fruit still gets a title.
+    const dishes = [mains, ...Object.values(groups)].find((items) => items.length).join(" / ");
     const title = theme ? `${theme} ${dishes}` : dishes;
     const description = Object.entries(KEEP_TYPES)
       .filter(([type]) => groups[type].length)

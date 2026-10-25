@@ -1,6 +1,6 @@
 # MealViewer → Calendar
 
-Put your kid's school lunch menu on a family calendar — [Skylight](https://www.skylightframe.com/), Google Calendar, Apple Calendar, Outlook, or anything else that can subscribe to a calendar link.
+Put your kid's school lunch menu on a family calendar — [Skylight](https://refer.skylightframe.com/wphpa29n) (Referral Code), Google Calendar, Apple Calendar, Outlook, or anything else that can subscribe to a calendar link.
 
 If your school publishes its menu on **[MealViewer](https://schools.mealviewer.com/)**, this small, free [Cloudflare Worker](https://workers.cloudflare.com/) turns that menu into a calendar feed. Each school day becomes one all-day event:
 
@@ -92,6 +92,76 @@ Open it in a browser to check. It should download a small calendar file.
 
 Calendar apps check for updates on their own schedule, usually every few hours, so the first events can take a little while to appear.
 
+## Choosing a different menu (breakfast, snack…)
+
+Lunch is the default, but the feed works with any menu your school posts on MealViewer, like breakfast, after-school snack, or a Pre-K menu.
+
+### See which menus your school has
+
+Open your Worker's address with `/menus` on the end:
+
+```
+https://school-lunch-calendar.<your-account>.workers.dev/menus
+```
+
+You'll get a list like this:
+
+```
+Afternoon Snack
+Breakfast
+Elementary Lunch
+Middle School Lunch
+```
+
+Names vary a lot between schools ("Breakfast", "Elementary Breakfast", "Breakfast in the Classroom"…), so copy yours exactly, including capitals and spaces.
+
+### Switch the feed to a different menu
+
+To change your existing calendar from lunch to, say, breakfast, edit the `[vars]` in `wrangler.toml`:
+
+```toml
+MEAL = "Breakfast"
+CALENDAR_NAME = "School Breakfast"
+EVENT_PREFIX = "🥞 Breakfast:"
+```
+
+Then run `npm run deploy`. Your calendar link stays the same (it still ends in `/lunch.ics`, which is fine). Calendar apps pick up the new menu on their next refresh.
+
+### Add a second menu alongside lunch
+
+To have lunch *and* breakfast (or a snack) as separate calendars, deploy a second copy of the Worker with its own settings. Each copy gets its own link, so you can turn them on and off separately in your calendar app.
+
+1. Make a second settings file:
+
+   ```bash
+   cp wrangler.toml wrangler.breakfast.toml
+   ```
+
+2. In `wrangler.breakfast.toml`, give it a different `name` and set the menu:
+
+   ```toml
+   name = "school-breakfast-calendar"
+
+   [vars]
+   SCHOOL_ID = "123456-12345"
+   MEAL = "Breakfast"
+   TIMEZONE = "America/Denver"
+   CALENDAR_NAME = "School Breakfast"
+   EVENT_PREFIX = "🥞 Breakfast:"
+   ```
+
+3. Deploy it:
+
+   ```bash
+   npx wrangler deploy --config wrangler.breakfast.toml
+   ```
+
+4. Subscribe to the new link it prints, with `/lunch.ics` on the end, e.g. `https://school-breakfast-calendar.<your-account>.workers.dev/lunch.ics`.
+
+Repeat with another name for an after-school snack calendar (e.g. `wrangler.snack.toml`, `EVENT_PREFIX = "🍎 Snack:"`). Extra settings files matching `wrangler.*.toml` are git-ignored too, except the example.
+
+**Updating later:** `npm run deploy` only updates the main lunch Worker. After changing the code, also run `npx wrangler deploy --config wrangler.breakfast.toml` (and so on) for each extra copy.
+
 ## Keep your link private-ish
 
 Anyone with your calendar link can see the menu, and the link includes your Cloudflare account name. The menu itself is already public on MealViewer, but if you share screenshots or code, leave the link out.
@@ -106,8 +176,6 @@ Everything is in [`src/index.js`](src/index.js):
 - **How far ahead and back:** `DAYS_AHEAD` and `DAYS_BACK`
 
 After changing anything, run `npm run deploy` again.
-
-**Want breakfast too?** Deploy a second copy: change `name` in `wrangler.toml` (e.g. `"school-breakfast-calendar"`), set `MEAL` to the breakfast menu, and deploy. You'll get a second link to subscribe to.
 
 ## Testing locally
 
