@@ -4,7 +4,8 @@
   "type": "module",
   "scripts": {
     "dev": "wrangler dev",
-    "deploy": "wrangler deploy"
+    "deploy": "wrangler deploy",
+    "menus": "node scripts/list-menus.mjs"
   },
   "devDependencies": {
     "wrangler": "^4.152.0"

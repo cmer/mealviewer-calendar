@@ -1,5 +1,7 @@
-// Turns a school's MealViewer menu into an iCalendar feed that Skylight, Google Calendar,
-// Apple Calendar etc. can subscribe to. Settings come from the [vars] in wrangler.toml.
+// Turns schools' MealViewer menus into iCalendar feeds that Skylight, Google Calendar,
+// Apple Calendar etc. can subscribe to. Settings come from the [vars] in wrangler.toml:
+// each [vars.FEEDS.<name>] table becomes a feed at /<name>.ics, or without FEEDS the
+// top-level settings make a single /lunch.ics feed.
 
 const DAYS_BACK = 7;
 const DAYS_AHEAD = 35;
@@ -20,33 +22,44 @@ const TITLE_SKIP = /^(SBJ|WBJ|PBJ) Sandwich$|\broll$/i;
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
-    if (url.pathname !== "/lunch.ics" && url.pathname !== "/menus") {
+    const feedPath = url.pathname.match(/^\/([A-Za-z0-9-]+)\.ics$/);
+    if (!feedPath && url.pathname !== "/menus") {
       return new Response("Not found", { status: 404 });
     }
 
-    let config;
+    let feeds;
     try {
-      config = readConfig(env);
+      feeds = readFeeds(env);
     } catch (err) {
       return new Response(err.message, { status: 500 });
     }
 
-    // Lists the menu names MealViewer has for this school, to help pick the right MEAL setting.
+    // Lists the menu names MealViewer has for each configured school, to help pick the right MEAL setting.
     if (url.pathname === "/menus") {
+      const schools = new Map([...feeds.values()].map((feed) => [feed.schoolId, feed]));
       try {
-        const names = await fetchMenuNames(config);
-        const body = names.length
-          ? `Menus found for ${config.schoolId} (set MEAL to one of these):\n\n${names.join("\n")}\n`
-          : `No menus found for ${config.schoolId} in the next few weeks. Check SCHOOL_ID, or try again once the school posts its menu.\n`;
-        return new Response(body, { headers: { "Content-Type": "text/plain; charset=utf-8" } });
+        const sections = await Promise.all(
+          [...schools.values()].map(async (feed) => {
+            const names = await fetchMenuNames(feed);
+            return names.length
+              ? `Menus found for ${feed.schoolId} (set MEAL to one of these):\n\n${names.join("\n")}\n`
+              : `No menus found for ${feed.schoolId} in the next few weeks. Check SCHOOL_ID, or try again once the school posts its menu.\n`;
+          }),
+        );
+        return new Response(sections.join("\n"), { headers: { "Content-Type": "text/plain; charset=utf-8" } });
       } catch (err) {
         console.error("Failed to load menu names:", err);
         return new Response("Menu temporarily unavailable", { status: 502 });
       }
     }
 
+    const config = feeds.get(feedPath[1].toLowerCase());
+    if (!config) {
+      return new Response("Not found", { status: 404 });
+    }
+
     const cache = caches.default;
-    const cacheKey = new Request(url.origin + url.pathname);
+    const cacheKey = new Request(`${url.origin}/${config.feedName}.ics`);
     const cached = await cache.match(cacheKey);
     if (cached) return cached;
 
@@ -70,24 +83,72 @@ export default {
   },
 };
 
-function readConfig(env) {
-  const schoolId = String(env.SCHOOL_ID ?? "").trim();
-  if (!/^[A-Za-z0-9-]+$/.test(schoolId) || schoolId === "YOUR-SCHOOL-ID") {
-    throw new Error("SCHOOL_ID is not set. Add it under [vars] in wrangler.toml and redeploy.");
+// Returns a Map of feed name -> settings. Feeds inherit the top-level SCHOOL_ID, SCHOOL_NAME and
+// TIMEZONE unless they set their own (e.g. a sibling at a different school).
+function readFeeds(env) {
+  let defs = env.FEEDS;
+  if (typeof defs === "string") {
+    try {
+      defs = JSON.parse(defs); // FEEDS set as a JSON variable in the Cloudflare dashboard
+    } catch {
+      throw new Error("FEEDS must be a table in wrangler.toml (or valid JSON).");
+    }
   }
-  const timezone = String(env.TIMEZONE || "America/New_York");
+  const entries =
+    defs && typeof defs === "object"
+      ? Object.entries(defs)
+      : [["lunch", { MEAL: env.MEAL, CALENDAR_NAME: env.CALENDAR_NAME, EVENT_PREFIX: env.EVENT_PREFIX }]];
+  if (!entries.length) throw new Error("FEEDS is empty. Add at least one [vars.FEEDS.<name>] table.");
+
+  const feeds = new Map();
+  for (const [name, def] of entries) {
+    const feedName = name.toLowerCase();
+    if (!/^[a-z0-9-]+$/.test(feedName)) {
+      throw new Error(`Feed name "${name}" can only use letters, numbers and dashes.`);
+    }
+    if (feeds.has(feedName)) throw new Error(`Feed name "${name}" is used twice.`);
+    if (!def || typeof def !== "object") throw new Error(`Feed "${name}" must be a table of settings.`);
+    const inherited = { SCHOOL_ID: env.SCHOOL_ID, TIMEZONE: env.TIMEZONE };
+    // The top-level school name only applies to feeds at the top-level school.
+    if (!("SCHOOL_ID" in def)) inherited.SCHOOL_NAME = env.SCHOOL_NAME;
+    feeds.set(feedName, readFeed(feedName, { ...inherited, ...def }));
+  }
+  return feeds;
+}
+
+function readFeed(feedName, vars) {
+  const schoolId = String(vars.SCHOOL_ID ?? "").trim();
+  if (!/^[A-Za-z0-9-]+$/.test(schoolId) || schoolId === "YOUR-SCHOOL-ID") {
+    throw new Error(`SCHOOL_ID is not set for the "${feedName}" feed. Add it under [vars] in wrangler.toml and redeploy.`);
+  }
+  const timezone = String(vars.TIMEZONE || "America/New_York");
   try {
     new Intl.DateTimeFormat("en-US", { timeZone: timezone });
   } catch {
     throw new Error(`TIMEZONE "${timezone}" is not a valid IANA time zone name.`);
   }
+  const meal = String(vars.MEAL || "Lunch");
+  const { word, emoji } = mealLabel(meal);
+  // An optional short school name ("Lincoln") goes into the labels, so several schools' calendars
+  // can be told apart on one board: "Lincoln Lunch" / "🍽 Lincoln Lunch:".
+  const schoolName = String(vars.SCHOOL_NAME ?? "").replace(/[\x00-\x1f\x7f]+/g, " ").trim();
+  const label = schoolName ? `${schoolName} ${word}` : word;
   return {
+    feedName,
     schoolId,
-    meal: String(env.MEAL || "Lunch"),
+    meal,
     timezone,
-    calendarName: String(env.CALENDAR_NAME || "School Lunch"),
-    eventPrefix: String(env.EVENT_PREFIX || "🍽 Lunch:"),
+    calendarName: String(vars.CALENDAR_NAME || (schoolName ? label : `School ${word}`)),
+    eventPrefix: String(vars.EVENT_PREFIX || `${emoji} ${label}:`),
   };
+}
+
+// Default labels so a breakfast feed doesn't say "Lunch" unless told otherwise.
+function mealLabel(meal) {
+  if (/breakfast/i.test(meal)) return { word: "Breakfast", emoji: "🥞" };
+  if (/snack/i.test(meal)) return { word: "Snack", emoji: "🍎" };
+  if (/supper|dinner/i.test(meal)) return { word: "Supper", emoji: "🍲" };
+  return { word: "Lunch", emoji: "🍽" };
 }
 
 async function fetchSchedules({ schoolId, timezone }) {
@@ -150,7 +211,7 @@ async function fetchMenu(config) {
   return days;
 }
 
-function buildCalendar(days, { schoolId, timezone, calendarName, eventPrefix }) {
+function buildCalendar(days, { feedName, schoolId, timezone, calendarName, eventPrefix }) {
   const stamp = new Date().toISOString().replace(/[-:]/g, "").replace(/\.\d+/, "");
   const lines = [
     "BEGIN:VCALENDAR",
@@ -178,7 +239,7 @@ function buildCalendar(days, { schoolId, timezone, calendarName, eventPrefix }) 
 
     lines.push(
       "BEGIN:VEVENT",
-      `UID:lunch-${schoolId}-${ymd}@school-lunch`,
+      `UID:${feedName}-${schoolId}-${ymd}@school-lunch`,
       `DTSTAMP:${stamp}`,
       `DTSTART;VALUE=DATE:${ymd}`,
       `DTEND;VALUE=DATE:${next}`,

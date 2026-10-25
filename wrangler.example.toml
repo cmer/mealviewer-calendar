@@ -11,12 +11,37 @@ compatibility_date = "2026-10-01"
 #   https://schools.mealviewer.com/school/123456-12345  ->  "123456-12345"
 SCHOOL_ID = "YOUR-SCHOOL-ID"
 
-# The menu name exactly as MealViewer shows it, e.g. "Lunch", "Elementary Lunch", "Middle School Lunch", "Breakfast"
-MEAL = "Lunch"
-
 # Your local time zone (IANA name), e.g. "America/New_York", "America/Denver", "America/Los_Angeles", "Pacific/Honolulu"
 TIMEZONE = "America/New_York"
 
-# Optional: how the calendar and its events are labeled
-CALENDAR_NAME = "School Lunch"
-EVENT_PREFIX = "🍽 Lunch:"
+# Optional: a short school name to show in event titles, e.g. "🍽 Lincoln Lunch: ..."
+# SCHOOL_NAME = "Lincoln"
+
+# Each [vars.FEEDS.<name>] section below is one calendar, at  https://<your-worker>/<name>.ics
+# Names can use letters, numbers and dashes. Feeds use the SCHOOL_ID, SCHOOL_NAME and
+# TIMEZONE above unless they set their own.
+#
+# MEAL is the menu name exactly as MealViewer shows it, e.g. "Lunch", "Elementary Lunch",
+# "Breakfast", "Afternoon Snack". Visit https://<your-worker>/menus after deploying to list them.
+
+[vars.FEEDS.lunch]
+MEAL = "Lunch"
+
+# Optional extra calendars. Remove the # at the start of each line to turn one on.
+
+# [vars.FEEDS.breakfast]
+# MEAL = "Breakfast"
+
+# [vars.FEEDS.snack]
+# MEAL = "Afternoon Snack"
+
+# A kid at a different school: give the feed its own SCHOOL_ID (and SCHOOL_NAME, if you use names).
+# Add as many schools as you need this way.
+# [vars.FEEDS.kid2-lunch]
+# SCHOOL_ID = "654321-54321"
+# SCHOOL_NAME = "Roosevelt"
+# MEAL = "Middle School Lunch"
+
+# Optional per feed: CALENDAR_NAME (the calendar's name in your app) and EVENT_PREFIX
+# (text before each event title). They default to e.g. "School Breakfast" and "🥞 Breakfast:",
+# or "Lincoln Breakfast" and "🥞 Lincoln Breakfast:" when SCHOOL_NAME is set.
