@@ -1,0 +1,22 @@
+# Copy this file to wrangler.toml and fill in your school's details:
+#   cp wrangler.example.toml wrangler.toml
+# wrangler.toml is git-ignored, so your school stays out of the repo.
+
+name = "school-lunch-calendar"
+main = "src/index.js"
+compatibility_date = "2026-10-01"
+
+[vars]
+# The last part of your school's MealViewer URL:
+#   https://schools.mealviewer.com/school/123456-12345  ->  "123456-12345"
+SCHOOL_ID = "YOUR-SCHOOL-ID"
+
+# The menu name exactly as MealViewer shows it, e.g. "Lunch", "Elementary Lunch", "Middle School Lunch", "Breakfast"
+MEAL = "Lunch"
+
+# Your local time zone (IANA name), e.g. "America/New_York", "America/Denver", "America/Los_Angeles", "Pacific/Honolulu"
+TIMEZONE = "America/New_York"
+
+# Optional: how the calendar and its events are labeled
+CALENDAR_NAME = "School Lunch"
+EVENT_PREFIX = "🍽 Lunch:"
