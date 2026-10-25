@@ -13,11 +13,16 @@ const CONDIMENTS = new Set([
   "ketchup", "mustard", "ranch", "mayo", "mayonnaise", "margarine", "butter",
   "syrup", "salsa", "cream cheese", "sour cream", "jelly", "honey",
 ]);
-// Standalone sauces/garnishes ("Sweet Chili Sauce"), but not dishes served with one ("Nachos with Cheese Sauce").
-const CONDIMENT_SUFFIX = /\b(sauce|dressing|garnish|dip|gravy)$/i;
-const SERVED_WITH = /\bw\/|\bwith\b/i;
-// Everyday staples (sunbutter & jelly sandwiches, bread rolls) stay in the notes but don't crowd the event title.
-const TITLE_SKIP = /^(SBJ|WBJ|PBJ) Sandwich$|\broll$/i;
+// Standalone sauces/garnishes ("Sweet Chili Sauce"), but not dishes served with one
+// ("Nachos with Cheese Sauce", "Biscuits and Gravy", "Chips & Dip").
+const CONDIMENT_SUFFIX = /\b(sauce|dressing|dip|gravy)$/i;
+const SERVED_WITH = /\bw\/|\bwith\b|\band\b|&/i;
+const GARNISH = /\bgarnish$/i;
+// Section headers, for menus typed entirely in capitals where case alone can't tell them apart.
+const HEADER_NAME = /^(featured |daily )?(entrees?|vegetables?|fruits?|sides?|grains?|milk|options?|selections?|choice of \w+)$/i;
+// Everyday staples (sunbutter & jelly sandwiches, bread rolls) stay in the notes but don't crowd
+// the event title. "Egg Roll" and "Spring Roll" are mains, so only bread-type rolls match.
+const TITLE_SKIP = /^(SBJ|WBJ|PBJ) Sandwich$|\b(dinner|bread|wheat|whole grain|wg|hawaiian) roll$/i;
 
 export default {
   async fetch(request, env, ctx) {
@@ -36,7 +41,8 @@ export default {
 
     // Lists the menu names MealViewer has for each configured school, to help pick the right MEAL setting.
     if (url.pathname === "/menus") {
-      const schools = new Map([...feeds.values()].map((feed) => [feed.schoolId, feed]));
+      const problems = [...feeds.values()].filter((feed) => feed.error).map((feed) => `Feed "${feed.feedName}": ${feed.error}\n`);
+      const schools = new Map([...feeds.values()].filter((feed) => !feed.error).map((feed) => [feed.schoolId, feed]));
       try {
         const sections = await Promise.all(
           [...schools.values()].map(async (feed) => {
@@ -46,7 +52,7 @@ export default {
               : `No menus found for ${feed.schoolId} in the next few weeks. Check SCHOOL_ID, or try again once the school posts its menu.\n`;
           }),
         );
-        return new Response(sections.join("\n"), { headers: { "Content-Type": "text/plain; charset=utf-8" } });
+        return new Response([...problems, ...sections].join("\n"), { headers: { "Content-Type": "text/plain; charset=utf-8" } });
       } catch (err) {
         console.error("Failed to load menu names:", err);
         return new Response("Menu temporarily unavailable", { status: 502 });
@@ -56,6 +62,9 @@ export default {
     const config = feeds.get(feedPath[1].toLowerCase());
     if (!config) {
       return new Response("Not found", { status: 404 });
+    }
+    if (config.error) {
+      return new Response(config.error, { status: 500 });
     }
 
     const cache = caches.default;
@@ -84,7 +93,8 @@ export default {
 };
 
 // Returns a Map of feed name -> settings. Feeds inherit the top-level SCHOOL_ID, SCHOOL_NAME and
-// TIMEZONE unless they set their own (e.g. a sibling at a different school).
+// TIMEZONE unless they set their own (e.g. a sibling at a different school). A feed with a bad
+// setting is kept as { feedName, error } so a typo in one feed doesn't take the others down.
 function readFeeds(env) {
   let defs = env.FEEDS;
   if (typeof defs === "string") {
@@ -107,11 +117,15 @@ function readFeeds(env) {
       throw new Error(`Feed name "${name}" can only use letters, numbers and dashes.`);
     }
     if (feeds.has(feedName)) throw new Error(`Feed name "${name}" is used twice.`);
-    if (!def || typeof def !== "object") throw new Error(`Feed "${name}" must be a table of settings.`);
-    const inherited = { SCHOOL_ID: env.SCHOOL_ID, TIMEZONE: env.TIMEZONE };
-    // The top-level school name only applies to feeds at the top-level school.
-    if (!("SCHOOL_ID" in def)) inherited.SCHOOL_NAME = env.SCHOOL_NAME;
-    feeds.set(feedName, readFeed(feedName, { ...inherited, ...def }));
+    try {
+      if (!def || typeof def !== "object") throw new Error(`Feed "${name}" must be a table of settings.`);
+      const inherited = { SCHOOL_ID: env.SCHOOL_ID, TIMEZONE: env.TIMEZONE };
+      // The top-level school name only applies to feeds at the top-level school.
+      if (!("SCHOOL_ID" in def)) inherited.SCHOOL_NAME = env.SCHOOL_NAME;
+      feeds.set(feedName, readFeed(feedName, { ...inherited, ...def }));
+    } catch (err) {
+      feeds.set(feedName, { feedName, error: err.message });
+    }
   }
   return feeds;
 }
@@ -119,7 +133,7 @@ function readFeeds(env) {
 function readFeed(feedName, vars) {
   const schoolId = String(vars.SCHOOL_ID ?? "").trim();
   if (!/^[A-Za-z0-9-]+$/.test(schoolId) || schoolId === "YOUR-SCHOOL-ID") {
-    throw new Error(`SCHOOL_ID is not set for the "${feedName}" feed. Add it under [vars] in wrangler.toml and redeploy.`);
+    throw new Error(`SCHOOL_ID is not set for the "${feedName}" feed. Add it under [vars] or [vars.FEEDS.${feedName}] in wrangler.toml and redeploy.`);
   }
   const timezone = String(vars.TIMEZONE || "America/New_York");
   try {
@@ -169,14 +183,29 @@ async function fetchSchedules({ schoolId, timezone }) {
   return data.menuSchedules ?? [];
 }
 
+// Cleans text from MealViewer: control characters out, whitespace collapsed.
+function cleanText(value) {
+  return String(value ?? "").replace(/[\x00-\x1f\x7f]+/g, " ").replace(/\s+/g, " ").trim();
+}
+
+// Menu names are matched loosely ("Lunch " == "lunch"), since MealViewer data has stray spaces.
+function sameName(a, b) {
+  return cleanText(a).toLowerCase() === cleanText(b).toLowerCase();
+}
+
 async function fetchMenuNames(config) {
   const names = new Set();
   for (const schedule of await fetchSchedules(config)) {
     for (const block of schedule.menuBlocks ?? []) {
-      if (block.blockName) names.add(String(block.blockName).replace(/[\x00-\x1f\x7f]+/g, " ").trim());
+      const name = cleanText(block.blockName);
+      if (name) names.add(name);
     }
   }
   return [...names].sort();
+}
+
+function isAllCaps(name) {
+  return name === name.toUpperCase() && /[A-Z]/.test(name);
 }
 
 async function fetchMenu(config) {
@@ -186,27 +215,40 @@ async function fetchMenu(config) {
   const days = [];
   for (const schedule of schedules) {
     const date = schedule.dateInformation?.dateFull?.slice(0, 10);
-    const block = (schedule.menuBlocks ?? []).find((b) => b.blockName === meal);
+    const block = (schedule.menuBlocks ?? []).find((b) => sameName(b.blockName, meal));
     if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date) || !block) continue;
 
-    const groups = Object.fromEntries(Object.keys(KEEP_TYPES).map((type) => [type, []]));
+    const items = [];
     let theme = null;
     for (const line of block.cafeteriaLineList?.data ?? []) {
       for (const item of line.foodItemList?.data ?? []) {
-        const name = String(item.item_Name ?? "").replace(/[\x00-\x1f\x7f]+/g, " ").trim();
+        const name = cleanText(item.item_Name);
         const themeMatch = name.match(/^\*(.+)\*$/); // e.g. "*HOLIDAY MEAL!*"
         if (themeMatch) {
           theme = titleCase(themeMatch[1]);
           continue;
         }
-        const group = groups[item.item_Type];
-        if (!group || !name) continue;
-        if (name === name.toUpperCase()) continue; // section header like "FEATURED ENTREES"
-        if (isCondiment(name)) continue;
-        if (!group.includes(name)) group.push(name);
+        if (name && Object.hasOwn(KEEP_TYPES, item.item_Type)) items.push({ type: item.item_Type, name });
       }
     }
-    if (Object.values(groups).some((items) => items.length)) days.push({ date, theme, groups });
+
+    // Section headers like "FEATURED ENTREES" are in capitals. Some schools type every dish in
+    // capitals too, so only treat capitals as a header when most of the menu isn't in capitals.
+    const capsCount = items.filter((item) => isAllCaps(item.name)).length;
+    const capsIsHeader = capsCount * 2 < items.length;
+
+    const groups = Object.fromEntries(Object.keys(KEEP_TYPES).map((type) => [type, []]));
+    for (const item of items) {
+      let { name } = item;
+      if (isAllCaps(name)) {
+        if (capsIsHeader || HEADER_NAME.test(name)) continue;
+        name = titleCase(name);
+      }
+      if (isCondiment(name)) continue;
+      const group = groups[item.type];
+      if (!group.includes(name)) group.push(name);
+    }
+    if (Object.values(groups).some((group) => group.length)) days.push({ date, theme, groups });
   }
   return days;
 }
@@ -256,7 +298,7 @@ function buildCalendar(days, { feedName, schoolId, timezone, calendarName, event
 
 function isCondiment(name) {
   const lower = name.toLowerCase();
-  if (CONDIMENTS.has(lower)) return true;
+  if (CONDIMENTS.has(lower) || GARNISH.test(name)) return true;
   return CONDIMENT_SUFFIX.test(name) && !SERVED_WITH.test(name);
 }
 

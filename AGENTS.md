@@ -10,7 +10,7 @@ The goal: one or more working calendar links (e.g. `https://school-lunch-calenda
 
 Ask for anything the user hasn't already given you:
 
-- **School:** their school's MealViewer link (`https://schools.mealviewer.com/school/<SCHOOL_ID>`) or the school's name. If they only give a name, ask them to find the school at https://schools.mealviewer.com/ and paste the link. Don't guess IDs.
+- **School:** their school's MealViewer link (`https://schools.mealviewer.com/school/<SCHOOL_ID>`; the ID is usually a name like `LincolnES`, sometimes a number) or the school's name. If they only give a name, ask them to find the school at https://schools.mealviewer.com/ and paste the link. Don't guess IDs.
 - **Menus:** which menus they want (lunch, breakfast, snack…), and for which kids/schools. A family can have any number of schools.
 - **School names in titles:** whether event titles should include a short school name ("🍽 Lincoln Lunch: …"). Recommend it when there's more than one school, since all calendars show together on one Skylight board.
 - **Time zone:** a city or region is enough. Convert it to an IANA name like `America/Denver`.
@@ -18,7 +18,7 @@ Ask for anything the user hasn't already given you:
 
 ### 2. Prerequisites
 
-- Node.js 18 or newer (`node -v`). If it's missing, help the user install it from https://nodejs.org/ (or with their package manager) before continuing.
+- Node.js 22 or newer (`node -v`). If it's missing, help the user install it from https://nodejs.org/ (or with their package manager) before continuing.
 - Clone the repo if you're not already in it, then run `npm install`.
 
 ### 3. Find the exact menu names
@@ -29,7 +29,7 @@ For each school:
 npm run menus -- <SCHOOL_ID or MealViewer URL>
 ```
 
-It prints the school's name, so confirm with the user that it's the right school, and lists the menu names. `MEAL` must match a name exactly. Pick the one matching what the user asked for (e.g. "lunch" → "Elementary Lunch"). Ask if it's ambiguous, e.g. there's both "K-5 Lunch" and "Pre-K Lunch" and you don't know the kid's grade.
+It prints the school's name, so confirm with the user that it's the right school, and lists the menu names. `MEAL` must match a name (capitals and spacing don't matter, the words do). Pick the one matching what the user asked for (e.g. "lunch" → "Elementary Lunch"). Ask if it's ambiguous, e.g. there's both "K-5 Lunch" and "Pre-K Lunch" and you don't know the kid's grade.
 
 If no menus are listed, the school may not have posted any yet (common in summer). Tell the user, and set the feed up anyway with the names they expect. It starts working once menus are posted.
 
@@ -39,11 +39,13 @@ If no menus are listed, the school may not have posted any yet (common in summer
 cp wrangler.example.toml wrangler.toml
 ```
 
+(`copy` instead of `cp` in Windows Command Prompt.)
+
 Then edit it. Use one `[vars.FEEDS.<name>]` table per calendar:
 
 ```toml
 [vars]
-SCHOOL_ID = "123456-12345"
+SCHOOL_ID = "LincolnES"
 SCHOOL_NAME = "Lincoln"
 TIMEZONE = "America/Denver"
 
@@ -55,7 +57,7 @@ MEAL = "Breakfast"
 
 # Second kid at another school: give the feed its own SCHOOL_ID and SCHOOL_NAME
 [vars.FEEDS.kid2-lunch]
-SCHOOL_ID = "654321-54321"
+SCHOOL_ID = "RooseveltMS"
 SCHOOL_NAME = "Roosevelt"
 MEAL = "Middle School Lunch"
 ```
@@ -93,7 +95,7 @@ curl -s https://<worker-address>/<feed>.ics | grep -c BEGIN:VEVENT
 ```
 
 - A number above 0 means it works. Also check that one `SUMMARY:` line looks like a sensible meal.
-- 0 events usually means `MEAL` doesn't exactly match a menu name. Check `https://<worker-address>/menus`, fix `wrangler.toml`, and redeploy. Or the school hasn't posted menus yet.
+- 0 events usually means `MEAL` doesn't match a menu name. Check `https://<worker-address>/menus`, fix `wrangler.toml`, and redeploy. Or the school hasn't posted menus yet.
 - A text error instead of a calendar points to the problem, e.g. `SCHOOL_ID is not set`.
 
 ### 7. Hand over

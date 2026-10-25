@@ -6,7 +6,7 @@ const schoolId = input.trim().replace(/\/+$/, "").split("/").pop();
 
 if (!/^[A-Za-z0-9-]+$/.test(schoolId)) {
   console.error("Usage: npm run menus -- <school-id or MealViewer URL>");
-  console.error("Example: npm run menus -- https://schools.mealviewer.com/school/123456-12345");
+  console.error("Example: npm run menus -- https://schools.mealviewer.com/school/LincolnES");
   process.exit(1);
 }
 

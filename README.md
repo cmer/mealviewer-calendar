@@ -50,7 +50,7 @@ A chat-only assistant (one that can't run anything on your computer) can't do th
 
 - A school that uses MealViewer
 - A free [Cloudflare account](https://dash.cloudflare.com/sign-up). No credit card needed.
-- [Node.js](https://nodejs.org/) version 18 or newer. This is what runs the setup commands.
+- [Node.js](https://nodejs.org/) version 22 or newer. This is what runs the setup commands.
 - About 10 minutes
 
 You'll be typing a few commands into the Terminal app (Mac) or Command Prompt (Windows). Each one is shown in a box below. Copy it, paste it, and press Enter.
@@ -67,42 +67,50 @@ cd mealviewer-calendar && npm install
 
 ### 2. Find your school's ID and menu names
 
-Look up your school at [schools.mealviewer.com](https://schools.mealviewer.com/). The web address of its page ends with the school's ID:
+Look up your school at [schools.mealviewer.com](https://schools.mealviewer.com/). The last part of its page's web address is the school's ID. It's usually the school's name squashed together, though some districts use a number:
 
 ```
-https://schools.mealviewer.com/school/123456-12345
-                                      ^^^^^^^^^^^^ this part
+https://schools.mealviewer.com/school/LincolnES
+                                      ^^^^^^^^^ this part
 ```
+
+If your district's link lands on a district page, click through to your school first.
 
 Then run this to see which menus your school posts (use your own link):
 
 ```bash
-npm run menus -- https://schools.mealviewer.com/school/123456-12345
+npm run menus -- https://schools.mealviewer.com/school/LincolnES
 ```
 
 ```
-Menus for LINCOLN ELEMENTARY (123456-12345). Use one of these as MEAL:
+Menus for LINCOLN ELEMENTARY (LincolnES). Use one of these as MEAL:
 
   Afternoon Snack
   Breakfast
   Elementary Lunch
 ```
 
-Every school names its menus a little differently, so write down the ones you want exactly as shown, capitals and all.
+Every school names its menus a little differently, so write down the ones you want as shown. Capitals and extra spaces don't matter, but the words do.
 
 ### 3. Fill in your school's details
 
-Make your settings file:
+Make your settings file. On a Mac, or in PowerShell on Windows:
 
 ```bash
 cp wrangler.example.toml wrangler.toml
+```
+
+In Windows Command Prompt, use this instead:
+
+```bash
+copy wrangler.example.toml wrangler.toml
 ```
 
 Open `wrangler.toml` in any text editor and fill it in. For a single lunch calendar it looks like this:
 
 ```toml
 [vars]
-SCHOOL_ID = "123456-12345"
+SCHOOL_ID = "LincolnES"
 TIMEZONE = "America/Denver"
 
 [vars.FEEDS.lunch]
@@ -161,7 +169,7 @@ Each `[vars.FEEDS.something]` section in your settings file is one feed: a separ
 
 ```toml
 [vars]
-SCHOOL_ID = "123456-12345"
+SCHOOL_ID = "LincolnES"
 TIMEZONE = "America/Denver"
 
 [vars.FEEDS.lunch]
@@ -179,7 +187,7 @@ Give a feed its own `SCHOOL_ID` to point it at a different school. Feeds without
 
 ```toml
 [vars]
-SCHOOL_ID = "123456-12345"        # Lincoln Elementary
+SCHOOL_ID = "LincolnES"        # Lincoln Elementary
 SCHOOL_NAME = "Lincoln"
 TIMEZONE = "America/Denver"
 
@@ -190,7 +198,7 @@ MEAL = "Elementary Lunch"
 MEAL = "Breakfast"
 
 [vars.FEEDS.kid2-lunch]
-SCHOOL_ID = "654321-54321"        # Roosevelt Middle
+SCHOOL_ID = "RooseveltMS"        # Roosevelt Middle
 SCHOOL_NAME = "Roosevelt"
 MEAL = "Middle School Lunch"
 ```

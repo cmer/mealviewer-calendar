@@ -8,7 +8,7 @@ compatibility_date = "2026-10-01"
 
 [vars]
 # The last part of your school's MealViewer URL:
-#   https://schools.mealviewer.com/school/123456-12345  ->  "123456-12345"
+#   https://schools.mealviewer.com/school/LincolnES  ->  "LincolnES"
 SCHOOL_ID = "YOUR-SCHOOL-ID"
 
 # Your local time zone (IANA name), e.g. "America/New_York", "America/Denver", "America/Los_Angeles", "Pacific/Honolulu"
@@ -38,7 +38,7 @@ MEAL = "Lunch"
 # A kid at a different school: give the feed its own SCHOOL_ID (and SCHOOL_NAME, if you use names).
 # Add as many schools as you need this way.
 # [vars.FEEDS.kid2-lunch]
-# SCHOOL_ID = "654321-54321"
+# SCHOOL_ID = "RooseveltMS"
 # SCHOOL_NAME = "Roosevelt"
 # MEAL = "Middle School Lunch"
 

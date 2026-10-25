@@ -12,5 +12,14 @@
   },
   "overrides": {
     "undici": "^7.30.1"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "license": "MIT",
+  "description": "Turn a school's MealViewer menu into a calendar feed for Skylight, Google Calendar or Apple Calendar",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/joehallissey/mealviewer-calendar.git"
   }
 }
