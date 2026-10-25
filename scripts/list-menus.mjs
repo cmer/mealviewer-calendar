@@ -22,14 +22,18 @@ if (!res.ok) {
 }
 const data = await res.json();
 
+// Upstream text goes to the terminal, so strip control characters (e.g. ANSI escapes) first.
+const clean = (value) => String(value ?? "").replace(/[\x00-\x1f\x7f]+/g, " ").replace(/\s+/g, " ").trim();
+
 const names = new Set();
 for (const schedule of data.menuSchedules ?? []) {
   for (const block of schedule.menuBlocks ?? []) {
-    if (block.blockName) names.add(String(block.blockName).trim());
+    const name = clean(block.blockName);
+    if (name) names.add(name);
   }
 }
 
-const school = data.physicalLocation?.name;
+const school = clean(data.physicalLocation?.name) || null;
 if (!names.size) {
   console.log(`No menus posted for ${school ?? schoolId} in the next 5 weeks. Check the ID, or try again once the school posts its menu.`);
 } else {

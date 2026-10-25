@@ -43,20 +43,22 @@ export default {
     if (url.pathname === "/menus") {
       const problems = [...feeds.values()].filter((feed) => feed.error).map((feed) => `Feed "${feed.feedName}": ${feed.error}\n`);
       const schools = new Map([...feeds.values()].filter((feed) => !feed.error).map((feed) => [feed.schoolId, feed]));
-      try {
-        const sections = await Promise.all(
-          [...schools.values()].map(async (feed) => {
-            const names = await fetchMenuNames(feed);
-            return names.length
-              ? `Menus found for ${feed.schoolId} (set MEAL to one of these):\n\n${names.join("\n")}\n`
-              : `No menus found for ${feed.schoolId} in the next few weeks. Check SCHOOL_ID, or try again once the school posts its menu.\n`;
-          }),
-        );
-        return new Response([...problems, ...sections].join("\n"), { headers: { "Content-Type": "text/plain; charset=utf-8" } });
-      } catch (err) {
-        console.error("Failed to load menu names:", err);
-        return new Response("Menu temporarily unavailable", { status: 502 });
-      }
+      // One school's outage shouldn't hide the others, so each is reported on its own.
+      const sections = await Promise.all(
+        [...schools.values()].map(async (feed) => {
+          try {
+            const { schoolName, menuNames } = await fetchMenuNames(feed);
+            const school = schoolName ? `${schoolName} (${feed.schoolId})` : feed.schoolId;
+            return menuNames.length
+              ? `Menus for ${school}. Set MEAL to one of these:\n\n${menuNames.join("\n")}\n`
+              : `No menus found for ${school} in the next few weeks. Check SCHOOL_ID, or try again once the school posts its menu.\n`;
+          } catch (err) {
+            console.error("Failed to load menu names:", err);
+            return `Couldn't reach MealViewer for ${feed.schoolId} right now. Try again in a few minutes.\n`;
+          }
+        }),
+      );
+      return new Response([...problems, ...sections].join("\n"), { headers: { "Content-Type": "text/plain; charset=utf-8" } });
     }
 
     const config = feeds.get(feedPath[1].toLowerCase());
@@ -104,10 +106,13 @@ function readFeeds(env) {
       throw new Error("FEEDS must be a table in wrangler.toml (or valid JSON).");
     }
   }
-  const entries =
-    defs && typeof defs === "object"
-      ? Object.entries(defs)
-      : [["lunch", { MEAL: env.MEAL, CALENDAR_NAME: env.CALENDAR_NAME, EVENT_PREFIX: env.EVENT_PREFIX }]];
+  if (Array.isArray(defs)) {
+    throw new Error('FEEDS must be tables like [vars.FEEDS.lunch] with single brackets, not [[vars.FEEDS]].');
+  }
+  const fromFeeds = Boolean(defs && typeof defs === "object");
+  const entries = fromFeeds
+    ? Object.entries(defs)
+    : [["lunch", { MEAL: env.MEAL, CALENDAR_NAME: env.CALENDAR_NAME, EVENT_PREFIX: env.EVENT_PREFIX }]];
   if (!entries.length) throw new Error("FEEDS is empty. Add at least one [vars.FEEDS.<name>] table.");
 
   const feeds = new Map();
@@ -122,6 +127,10 @@ function readFeeds(env) {
       const inherited = { SCHOOL_ID: env.SCHOOL_ID, TIMEZONE: env.TIMEZONE };
       // The top-level school name only applies to feeds at the top-level school.
       if (!("SCHOOL_ID" in def)) inherited.SCHOOL_NAME = env.SCHOOL_NAME;
+      // In FEEDS mode each feed names its menu; the legacy single-feed config may leave MEAL off.
+      if (fromFeeds && !String(def.MEAL ?? "").trim()) {
+        throw new Error(`MEAL is not set for the "${feedName}" feed. Add MEAL = "..." under [vars.FEEDS.${feedName}] (see /menus for the names).`);
+      }
       feeds.set(feedName, readFeed(feedName, { ...inherited, ...def }));
     } catch (err) {
       feeds.set(feedName, { feedName, error: err.message });
@@ -180,7 +189,10 @@ async function fetchSchedules({ schoolId, timezone }) {
   });
   if (!res.ok) throw new Error(`MealViewer returned ${res.status}`);
   const data = await res.json();
-  return data.menuSchedules ?? [];
+  return {
+    schoolName: cleanText(data?.physicalLocation?.name),
+    schedules: Array.isArray(data?.menuSchedules) ? data.menuSchedules : [],
+  };
 }
 
 // Cleans text from MealViewer: control characters out, whitespace collapsed.
@@ -194,14 +206,15 @@ function sameName(a, b) {
 }
 
 async function fetchMenuNames(config) {
+  const { schoolName, schedules } = await fetchSchedules(config);
   const names = new Set();
-  for (const schedule of await fetchSchedules(config)) {
+  for (const schedule of schedules) {
     for (const block of schedule.menuBlocks ?? []) {
       const name = cleanText(block.blockName);
       if (name) names.add(name);
     }
   }
-  return [...names].sort();
+  return { schoolName, menuNames: [...names].sort() };
 }
 
 function isAllCaps(name) {
@@ -210,13 +223,14 @@ function isAllCaps(name) {
 
 async function fetchMenu(config) {
   const { meal } = config;
-  const schedules = await fetchSchedules(config);
+  const { schedules } = await fetchSchedules(config);
 
   const days = [];
   for (const schedule of schedules) {
-    const date = schedule.dateInformation?.dateFull?.slice(0, 10);
+    const date = String(schedule.dateInformation?.dateFull ?? "").slice(0, 10);
     const block = (schedule.menuBlocks ?? []).find((b) => sameName(b.blockName, meal));
-    if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date) || !block) continue;
+    // A malformed date (e.g. month 13) skips just that day rather than failing the whole feed.
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || Number.isNaN(Date.parse(`${date}T12:00:00Z`)) || !block) continue;
 
     const items = [];
     let theme = null;

@@ -19,6 +19,7 @@ A few details:
 
 - Milk, ketchup, ranch and other condiments are left out, along with headings like "FEATURED ENTREES".
 - Special days like "Holiday Meal!" show up in the title.
+- Days with no menu, like holidays and weekends, simply have no event.
 - You can set up breakfast, snacks, or lunch at more than one school. Each gets its own calendar.
 - The calendar shows the past week and the next five weeks.
 
