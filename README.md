@@ -22,7 +22,7 @@ A few details:
 
 ## Let an AI assistant set it up
 
-If you use an AI tool that can run commands on your computer, such as [Claude Code](https://claude.com/claude-code), Codex, Cursor, or GitHub Copilot in agent mode, you can hand it this and fill in the blanks:
+If you use an AI tool that can run commands on your computer, such as [Claude Code](https://claude.ai/referral/6X4R68E8dQ?s=claude_ai) (Referral Code), Codex, Cursor, or GitHub Copilot in agent mode, you can hand it this and fill in the blanks:
 
 ```text
 Set up https://github.com/joehallissey/mealviewer-calendar for me so my kid's school
