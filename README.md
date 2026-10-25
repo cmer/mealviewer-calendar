@@ -266,6 +266,13 @@ Then open http://localhost:8787/lunch.ics (or any of your feed names) or http://
 
 The Worker asks MealViewer's public menu API for your school's menu, keeps the meal each feed asks for, drops condiments and headings, and returns a standard `.ics` calendar file. Cloudflare caches each calendar for an hour, so MealViewer gets at most one request per hour per calendar no matter how often your apps check.
 
+## Related projects and references
+
+- [mealviewer-to-ICS](https://github.com/Meandmybadself/mealviewer-to-ICS) by Meandmybadself: the same idea, built independently in 2024. The author hosts one copy that anyone can subscribe to by putting their school ID in the link, so there's nothing to set up. It shows lunch or breakfast only, puts the dishes in the event notes rather than the title, and doesn't filter out milk or condiments.
+- The MealViewer menu API isn't documented by MealViewer. The address this project uses is the one the MealViewer website itself requests when it shows a menu.
+- [RFC 5545](https://datatracker.ietf.org/doc/html/rfc5545) is the iCalendar standard the `.ics` output follows.
+- [Cloudflare Workers](https://developers.cloudflare.com/workers/) and [Wrangler](https://developers.cloudflare.com/workers/wrangler/) run and deploy it.
+
 ## License
 
 [MIT](LICENSE)
