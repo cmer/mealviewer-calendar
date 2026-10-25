@@ -4,12 +4,16 @@ Get your kid's school lunch menu onto the family calendar. Works with [Skylight]
 
 If your school posts its menu on **[MealViewer](https://schools.mealviewer.com/)**, this small, free [Cloudflare Worker](https://workers.cloudflare.com/) turns that menu into a calendar feed you can subscribe to. Once it's set up there's nothing else to do: new weeks appear on your calendar as the school posts them.
 
+![A family wall-calendar display in week view for November 9–13, 2026. Each school day shows breakfast and lunch menus as colored all-day events — one color per calendar — with Wednesday marked as a school holiday, and family events like soccer practice and piano lessons on the timed grid below.](images/hero-wall-display.png)
+
 Each school day becomes one all-day event:
 
 > **🍽 Lunch: Chicken Tenders / Toasted Grilled Cheese**
 > Entrées: Chicken Tenders, Toasted Grilled Cheese, Sunbutter & Jelly Sandwich
 > Veggies: Seasoned Corn, Fresh Cucumber Slices
 > Fruit: Fresh Apple, Raisins
+
+<img src="images/event-detail.png" alt="A phone calendar app showing a lunch event opened: an all-day event with the full title, the calendar name 'Lincoln Lunch', and the menu broken into Entrées, Veggies, Sides and Fruit." width="280">
 
 A few details:
 
@@ -140,6 +144,8 @@ Paste it into a browser to check. It should download a small calendar file.
 
 ### 5. Add it to your calendar app
 
+<img src="images/phone-agenda.png" alt="A phone calendar in agenda view listing each day of the week with its breakfast and lunch menus, with Wednesday shown as a school holiday." width="280">
+
 - **Skylight:** open the Skylight app, go to Calendar, then Sync a new calendar, choose the iCal / URL option, and paste your link. If it won't accept a link starting with `https://`, change that part to `webcal://`.
 - **Google Calendar:** on a computer, next to "Other calendars" click **+**, then "From URL".
 - **Apple Calendar:** File menu, then "New Calendar Subscription".
@@ -192,6 +198,8 @@ MEAL = "Middle School Lunch"
 That's three calendars: lunch and breakfast from Lincoln, and `/kid2-lunch.ics` from Roosevelt. Add more schools the same way. If a school is in a different time zone, set `TIMEZONE` on its feed.
 
 ### Showing the school's name in the title
+
+![Two calendars for the same day side by side. On the left, without a school name, both lunches read '🍽 Lunch:' in the same color and can't be told apart. On the right, with a school name, they read '🍽 Lincoln Lunch:' and '🍽 Roosevelt Lunch:' in two different colors.](images/school-names-compare.png)
 
 When several calendars share one screen, it helps to see whose lunch is whose. Add a `SCHOOL_NAME` line with a short name, and it goes into the titles:
 
