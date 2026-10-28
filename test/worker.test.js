@@ -166,7 +166,7 @@ test("Nutrislice: titles, descriptions, themes and holidays", async () => {
     // Untagged main dish with only an alternate tagged: the first dish, minus "served with".
     ["20261026", "🍽 Lincoln Lunch: Chicken Tenders"],
     ["20261027", "🍽 Lincoln Lunch: Penne w/ Beef Meatballs & Marinara"],
-    // A note before the dishes leads the title.
+    // A short note before the dishes leads the title; a long disclaimer doesn't.
     ["20261028", "🍽 Lincoln Lunch: Early Release Cheeseburger"],
     ["20261029", "🍽 Lincoln Lunch: Turkey Sausage & French Toast"],
     ["20261030", "🍽 Lincoln Lunch: Cheese Pizza Slice / Pepperoni Pizza Slice"],
@@ -174,10 +174,11 @@ test("Nutrislice: titles, descriptions, themes and holidays", async () => {
     ["20261123", "🍽 Lincoln Lunch: Turkey & Gravy"],
   ]);
   assert.equal(days[0].uid, "lunch-exampleisd-lincoln-elementary-20261026@school-lunch");
+  // Milk is left out, but not a dish served with milk.
   assert.equal(days[0].description, "Chicken Tenders\\nMac n Cheese\\nVegetarian Option: Mac n Cheese\\nGreen Beans\\nGrapes");
+  assert.equal(days[3].description, "Turkey Sausage & French Toast\\nCereal with Milk\\nHashbrown\\nMixed Fruit");
   // Condiments, section titles and station headers are left out; repeated dishes appear once.
   assert.equal(days[1].description, "Penne w/ Beef Meatballs & Marinara\\nVegetarian Option: Penne w/ Marinara\\nGarlic Breadstick\\nApple Slices");
-  assert.equal(days[3].description, "Turkey Sausage & French Toast\\nHashbrown\\nMixed Fruit");
   assert.equal(days[4].description, "Cheese Pizza Slice\\nPepperoni Pizza Slice\\nWatermelon\\nCarrots");
 });
 

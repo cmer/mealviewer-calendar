@@ -27,6 +27,11 @@ const TITLE_SKIP = /^(SBJ|WBJ|PBJ) Sandwich$|\b(dinner|bread|wheat|whole grain|w
 // written as "Chicken Tenders- Served with" loses the dangling "served with".
 const ALTERNATE = /^(vegetarian|vegan|meatless|alternate|alt\.?)\s+(option|entr[eé]e|choice)\b/i;
 const SERVED_WITH_TAIL = /\s*[-–—:,]?\s*(served|comes) with:?$/i;
+// Nutrislice lists milk cartons as dishes ("Chocolate Milk"); "Cereal with Milk" is a real dish.
+const MILK = /\bmilk$/i;
+const WITH = /\bwith\b|\bw\//i;
+// Notes longer than this ("Menu items are subject to change...") are disclaimers, not day themes.
+const NOTE_MAX_LENGTH = 30;
 
 // A Nutrislice menu link: https://<district>.nutrislice.com/menu/<school>[/<menu type>[/<date>]]
 const NUTRISLICE_URL = /^(?:https?:\/\/)?([a-z0-9-]+)\.nutrislice\.com\/menu\/([a-z0-9-]+)(?:\/(?!\d{4}-\d{2}-\d{2}(?:[/?#]|$))([a-z0-9-]+))?(?:[/?#]|$)/i;
@@ -408,12 +413,13 @@ function nutrisliceDay(day) {
     if (!row.food) {
       // A note before the first dish ("Early Release") leads the title, like MealViewer's "*HOLIDAY MEAL!*".
       const note = cleanText(row.text);
-      if (note && !foods.length && !theme) theme = isAllCaps(note) ? titleCase(note) : note;
+      if (note && note.length <= NOTE_MAX_LENGTH && !foods.length && !theme) theme = isAllCaps(note) ? titleCase(note) : note;
       continue;
     }
     const name = cleanText(row.food.name).replace(SERVED_WITH_TAIL, "");
+    if (!name || (MILK.test(name) && !WITH.test(name))) continue;
     const category = String(row.category || row.food.food_category || "").toLowerCase();
-    if (name) foods.push({ name, entree: category === "entree" || category === "main" });
+    foods.push({ name, entree: category === "entree" || category === "main" });
   }
 
   const items = [];

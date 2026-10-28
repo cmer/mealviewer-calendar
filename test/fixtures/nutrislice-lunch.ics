@@ -43,7 +43,8 @@ DTSTAMP:20261025T150000Z
 DTSTART;VALUE=DATE:20261029
 DTEND;VALUE=DATE:20261030
 SUMMARY:🍽 Lincoln Lunch: Turkey Sausage & French Toast
-DESCRIPTION:Turkey Sausage & French Toast\nHashbrown\nMixed Fruit
+DESCRIPTION:Turkey Sausage & French Toast\nCereal with Milk\nHashbrown\nMix
+ ed Fruit
 TRANSP:TRANSPARENT
 END:VEVENT
 BEGIN:VEVENT

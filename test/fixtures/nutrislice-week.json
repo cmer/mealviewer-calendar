@@ -63,6 +63,28 @@
             "name": "Grapes",
             "food_category": ""
           }
+        },
+        {
+          "is_section_title": false,
+          "is_station_header": false,
+          "is_holiday": false,
+          "text": "",
+          "category": "",
+          "food": {
+            "name": "Chocolate Milk",
+            "food_category": ""
+          }
+        },
+        {
+          "is_section_title": false,
+          "is_station_header": false,
+          "is_holiday": false,
+          "text": "",
+          "category": "",
+          "food": {
+            "name": "1% Low Fat Milk",
+            "food_category": ""
+          }
         }
       ]
     },
@@ -141,6 +163,14 @@
           "is_section_title": false,
           "is_station_header": false,
           "is_holiday": false,
+          "text": "Menu items are subject to change based on product availability",
+          "category": "",
+          "food": null
+        },
+        {
+          "is_section_title": false,
+          "is_station_header": false,
+          "is_holiday": false,
           "text": "EARLY RELEASE",
           "category": "",
           "food": null
@@ -210,6 +240,17 @@
           "category": "",
           "food": {
             "name": "Turkey Sausage & French Toast",
+            "food_category": ""
+          }
+        },
+        {
+          "is_section_title": false,
+          "is_station_header": false,
+          "is_holiday": false,
+          "text": "",
+          "category": "",
+          "food": {
+            "name": "Cereal with Milk",
             "food_category": ""
           }
         },
